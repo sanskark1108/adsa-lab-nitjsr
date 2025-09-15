@@ -1,127 +1,77 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <limits.h>
+#include <stdbool.h>
 
-// Structure to represent an edge
-typedef struct {
-    int src, dest, weight;
-} Edge;
+#define V 5  // Number of vertices in the graph (change as needed)
 
-// Structure to represent a graph
-typedef struct {
-    int V, E;      // Number of vertices and edges
-    Edge* edges;   // Array of edges
-} Graph;
+// Function to find the vertex with the minimum key value that is not yet included in MST
+int minKey(int key[], bool mstSet[]) {
+    int min = INT_MAX, min_index;
 
-// Structure for union-find
-typedef struct {
-    int parent;
-    int rank;
-} Subset;
+    for (int v = 0; v < V; v++) {
+        if (!mstSet[v] && key[v] < min) {
+            min = key[v];
+            min_index = v;
+        }
+    }
 
-// Function prototypes
-Graph* createGraph(int V, int E);
-int find(Subset subsets[], int i);
-void Union(Subset subsets[], int x, int y);
-int compareEdges(const void* a, const void* b);
-void KruskalMST(Graph* graph);
+    return min_index;
+}
 
+// Function to print the constructed MST stored in parent[]
+void printMST(int parent[], int graph[V][V]) {
+    printf("Edge \tWeight\n");
+    for (int i = 1; i < V; i++)
+        printf("%d - %d \t%d \n", parent[i], i, graph[i][parent[i]]);
+}
+
+// Function to construct and print MST for a graph represented using adjacency matrix
+void primMST(int graph[V][V]) {
+    int parent[V];   // Array to store constructed MST
+    int key[V];      // Key values to pick minimum weight edge in cut
+    bool mstSet[V];  // To represent set of vertices included in MST
+
+    // Initialize all keys as INFINITE
+    for (int i = 0; i < V; i++) {
+        key[i] = INT_MAX;
+        mstSet[i] = false;
+    }
+
+    // Start from the first vertex
+    key[0] = 0;      // Make key 0 so that this vertex is picked first
+    parent[0] = -1;  // First node is always the root of MST
+
+    // The MST will have V vertices
+    for (int count = 0; count < V - 1; count++) {
+        int u = minKey(key, mstSet);  // Pick the min key vertex
+        mstSet[u] = true;             // Add the picked vertex to MST set
+
+        // Update key and parent of the adjacent vertices
+        for (int v = 0; v < V; v++) {
+            // Update only if graph[u][v] is smaller than key[v]
+            if (graph[u][v] && !mstSet[v] && graph[u][v] < key[v]) {
+                parent[v] = u;
+                key[v] = graph[u][v];
+            }
+        }
+    }
+
+    // Print the constructed MST
+    printMST(parent, graph);
+}
+
+// Driver code
 int main() {
-    int V = 4; // Number of vertices
-    int E = 5; // Number of edges
-    Graph* graph = createGraph(V, E);
+    // Example graph (change values as needed)
+    int graph[V][V] = {
+        {0, 2, 0, 6, 0},
+        {2, 0, 3, 8, 5},
+        {0, 3, 0, 0, 7},
+        {6, 8, 0, 0, 9},
+        {0, 5, 7, 9, 0}
+    };
 
-    // add edges
-    graph->edges[0].src = 0; graph->edges[0].dest = 1; graph->edges[0].weight = 10;
-    graph->edges[1].src = 0; graph->edges[1].dest = 2; graph->edges[1].weight = 6;
-    graph->edges[2].src = 0; graph->edges[2].dest = 3; graph->edges[2].weight = 5;
-    graph->edges[3].src = 1; graph->edges[3].dest = 3; graph->edges[3].weight = 15;
-    graph->edges[4].src = 2; graph->edges[4].dest = 3; graph->edges[4].weight = 4;
-
-    KruskalMST(graph);
-
-    free(graph->edges);
-    free(graph);
+    primMST(graph);
 
     return 0;
-}
-
-Graph* createGraph(int V, int E) {
-    Graph* graph = (Graph*) malloc(sizeof(Graph));
-    graph->V = V;
-    graph->E = E;
-    graph->edges = (Edge*) malloc(E * sizeof(Edge));
-    return graph;
-}
-
-int find(Subset subsets[], int i) {
-    if (subsets[i].parent != i)
-        subsets[i].parent = find(subsets, subsets[i].parent);  // Path compression
-    return subsets[i].parent;
-}
-
-void Union(Subset subsets[], int x, int y) {
-    int xroot = find(subsets, x);
-    int yroot = find(subsets, y);
-
-    if (subsets[xroot].rank < subsets[yroot].rank)
-        subsets[xroot].parent = yroot;
-    else if (subsets[xroot].rank > subsets[yroot].rank)
-        subsets[yroot].parent = xroot;
-    else {
-        subsets[yroot].parent = xroot;
-        subsets[xroot].rank++;
-    }
-}
-
-int compareEdges(const void* a, const void* b) {
-    Edge* a1 = (Edge*)a;
-    Edge* b1 = (Edge*)b;
-    return a1->weight > b1->weight;
-}
-
-void KruskalMST(Graph* graph) {
-    int V = graph->V;
-    Edge result[V]; // This will store the resultant MST
-    int e = 0;      // Index for result[]
-    int i = 0;      // Index for sorted edges
-
-    // Step 1: Sort all the edges in non-decreasing order of their weight
-    qsort(graph->edges, graph->E, sizeof(Edge), compareEdges);
-
-    // Allocate memory for creating V subsets
-    Subset *subsets = (Subset*) malloc(V * sizeof(Subset));
-
-    // Create V subsets with single elements
-    for (int v = 0; v < V; ++v) {
-        subsets[v].parent = v;
-        subsets[v].rank = 0;
-    }
-
-    // Number of edges to be taken is V-1
-    while (e < V - 1 && i < graph->E) {
-        // Step 2: Pick the smallest edge
-        Edge next_edge = graph->edges[i++];
-
-        int x = find(subsets, next_edge.src);
-        int y = find(subsets, next_edge.dest);
-
-        // If including this edge does not cause cycle,
-        // include it in result and increment the index of result
-        if (x != y) {
-            result[e++] = next_edge;
-            Union(subsets, x, y);
-        }
-        // Else discard the edge
-    }
-
-    // Print the contents of result[] to display the MST
-    printf("Following are the edges in the constructed MST\n");
-    int minimumCost = 0;
-    for (i = 0; i < e; ++i) {
-        printf("%d -- %d == %d\n", result[i].src, result[i].dest, result[i].weight);
-        minimumCost += result[i].weight;
-    }
-    printf("Minimum Cost Spanning Tree: %d\n", minimumCost);
-
-    free(subsets);
 }

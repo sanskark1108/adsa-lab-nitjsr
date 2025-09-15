@@ -1,60 +1,80 @@
 #include <stdio.h>
 #include <limits.h>
+#include <stdbool.h>
 
-#define V 5  // Number of vertices
+#define V 5  // Number of vertices (can be changed)
 
-int minKey(int key[], int mstSet[]) {
-    int min = INT_MAX, min_index = -1;
+// Find the vertex with the minimum distance value, from
+// the set of vertices not yet processed
+int minDistance(int dist[], bool sptSet[]) {
+    int min = INT_MAX, min_index;
 
-    for (int v = 0; v < V; v++)
-        if (!mstSet[v] && key[v] < min)
-            min = key[v], min_index = v;
+    for (int v = 0; v < V; v++) {
+        if (!sptSet[v] && dist[v] <= min) {
+            min = dist[v];
+            min_index = v;
+        }
+    }
 
     return min_index;
 }
 
-void printMST(int parent[], int graph[V][V]) {
-    printf("Edge \tWeight\n");
-    for (int i = 1; i < V; i++)
-        printf("%d - %d \t%d\n", parent[i], i, graph[i][parent[i]]);
+// Print the constructed distance array
+void printSolution(int dist[]) {
+    printf("Vertex \t Distance from Source\n");
+    for (int i = 0; i < V; i++)
+        printf("%d \t %d\n", i, dist[i]);
 }
 
-void primMST(int graph[V][V]) {
-    int parent[V];   // Stores MST
-    int key[V];      // Key values
-    int mstSet[V];   // Included in MST
+// Dijkstra's algorithm function
+void dijkstra(int graph[V][V], int src) {
+    int dist[V];      // Output array: dist[i] holds shortest distance from src to i
+    bool sptSet[V];   // sptSet[i] will be true if vertex i is in shortest path tree
 
+    // Initialize all distances as INFINITE and sptSet[] as false
     for (int i = 0; i < V; i++) {
-        key[i] = INT_MAX;
-        mstSet[i] = 0;
+        dist[i] = INT_MAX;
+        sptSet[i] = false;
     }
 
-    key[0] = 0;      // Start from vertex 0
-    parent[0] = -1;  // First node is root
+    dist[src] = 0;  // Distance of source vertex from itself is always 0
 
+    // Find shortest path for all vertices
     for (int count = 0; count < V - 1; count++) {
-        int u = minKey(key, mstSet);
-        mstSet[u] = 1;
+        int u = minDistance(dist, sptSet);
 
-        for (int v = 0; v < V; v++)
-            if (graph[u][v] && !mstSet[v] && graph[u][v] < key[v]) {
-                parent[v] = u;
-                key[v] = graph[u][v];
+        sptSet[u] = true;  // Mark the chosen vertex as processed
+
+        // Update distance value of the adjacent vertices of the chosen vertex
+        for (int v = 0; v < V; v++) {
+            // Update dist[v] only if it's not in sptSet, there is an edge from
+            // u to v, and total weight of path from src to v through u is
+            // smaller than current value of dist[v]
+            if (!sptSet[v] && graph[u][v] &&
+                dist[u] != INT_MAX &&
+                dist[u] + graph[u][v] < dist[v]) {
+                dist[v] = dist[u] + graph[u][v];
             }
+        }
     }
 
-    printMST(parent, graph);
+    // Print the result
+    printSolution(dist);
 }
 
+// Driver code
 int main() {
+    // Example graph represented using adjacency matrix
     int graph[V][V] = {
-        {0, 2, 0, 6, 0},
-        {2, 0, 3, 8, 5},
-        {0, 3, 0, 0, 7},
-        {6, 8, 0, 0, 9},
-        {0, 5, 7, 9, 0}
+        {0, 10, 0, 0, 5},
+        {0, 0, 1, 0, 2},
+        {0, 0, 0, 4, 0},
+        {7, 0, 6, 0, 0},
+        {0, 3, 9, 2, 0}
     };
 
-    primMST(graph);
+    int source = 0;
+    dijkstra(graph, source);
+
     return 0;
 }
